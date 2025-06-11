@@ -1,0 +1,35 @@
+# how many pods?
+replicaCount: 3
+
+# image setup (FQ_IMAGE_NAME + CI_COMMIT_SHA)
+image:
+  repository: ""       # e.g. myregistry/stability-levers-api
+  tag: ""              # e.g. git-sha or “latest”
+  pullPolicy: IfNotPresent
+
+# envFrom secretRef
+secret:
+  name: aws-nonus-global-dev
+
+# Service
+service:
+  type: ClusterIP
+  port: 8080
+
+# Ingress (replaces the OpenShift Route)
+ingress:
+  enabled: true
+  hostname: ""         # e.g. stability-levers-api-xyz
+  domain: ""           # e.g. yourdomain.k8s.boeing.com
+  annotations: {}      # any ingress annotations
+  tls: false           # set true if you’ll use TLS
+  tlsSecret: ""        # name of TLS secret, if tls=true
+
+# resource requests & limits
+resources:
+  requests:
+    cpu: "1"
+    memory: "1Gi"
+  limits:
+    cpu: "2"
+    memory: "2Gi"

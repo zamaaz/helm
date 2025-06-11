@@ -1,0 +1,96 @@
+include:
+  - project: ecs-catalog/pipelines/general
+    ref: secret-detection_3.3
+    file: /secret-detection/pipeline.yml
+  - project: ecs-catalog/pipelines/general
+    ref: shared_5.3
+    file: /.shared/pipeline.yml
+
+variables:
+  CI_PROJECT_EMAIL: "${CI_ECS_GITLAB_ACCOUNT}@boeing.com"
+  CLUSTER_NAME: catalog-sample-application-cluster
+
+stages:
+  - checkout
+  - secret_detection
+  - deploy-partsui
+  - deploy-stability-api
+  - test
+  - destroy
+
+default:
+  tags:
+    - aws-155120177767
+    - docker
+    - us-gov-west-1
+  image:
+    name: $ENTERPRISE_DOCKER_REGISTRY/ecs-catalog/docker-images/terraform-cloud-cli/v1.8/aws-v2:1
+
+.install_helm:
+  script:
+    - curl -LO https://sres.web.boeing.com/artifactory/osstools/helmclient/3.4.1/helm-v3.4.1-linux-amd64.tar.gz \
+        -u "$CI_ECS_SRES_ACCOUNT:$CI_ECS_SRES_TOKEN" --insecure
+    - tar -xf helm-v3.4.1-linux-amd64.tar.gz
+    - mv linux-amd64/helm /usr/local/bin/helm
+
+.update_eks_config:
+  script:
+    - aws eks update-kubeconfig --region us-gov-west-1 --name $CLUSTER_NAME
+    - kubectl delete secret docker-registry regcred --ignore-not-found
+    - kubectl create secret docker-registry regcred \
+        --docker-server=$ENTERPRISE_DOCKER_REGISTRY \
+        --docker-username=$CI_ECS_GITLAB_ACCOUNT \
+        --docker-password=$CI_ECS_GITLAB_TOKEN \
+        --docker-email=$CI_PROJECT_EMAIL
+
+deploy_partsui:
+  stage: deploy-partsui
+  when: manual
+  script:
+    - !reference [.install_helm, script]
+    - !reference [.update_eks_config, script]
+    - |
+      echo "Deploying partsui..."
+      helm upgrade --install partsui ./partsui
+
+deploy_stability_api:
+  stage: deploy-stability-api
+  when: manual
+  script:
+    - !reference [.install_helm, script]
+    - !reference [.update_eks_config, script]
+    - |
+      echo "Deploying stability-levers-api..."
+      helm upgrade --install stability-levers-api ./stability-levers-api
+
+verify_application:
+  stage: test
+  script:
+    - !reference [.update_eks_config, script]
+    - |
+      addrs=$(kubectl get ingress --all-namespaces -o jsonpath='{range .items[*]}{.status.loadBalancer.ingress[0].hostname}{"\n"}{end}')
+      echo "$addrs" | while read addr; do
+        until [ -n "$addr" ]; do
+          echo "Waiting for ingress..."
+          sleep 10
+          addr=$(kubectl get ingress --all-namespaces --no-headers | awk '{print $5; exit}')
+        done
+        echo "Testing $addr"
+        curl --connect-timeout 10 --max-time 10 --retry 10 --retry-delay 10 --retry-max-time 30 $addr
+      done
+
+uninstall_charts:
+  stage: destroy
+  when: manual
+  script:
+    - !reference [.install_helm, script]
+    - !reference [.update_eks_config, script]
+    - |
+      for chart in partsui stability-levers-api; do
+        if helm list -q | grep -xq "$chart"; then
+          echo "🗑  Uninstalling $chart"
+          helm uninstall $chart
+        else
+          echo "$chart not found, skipping"
+        fi
+      done

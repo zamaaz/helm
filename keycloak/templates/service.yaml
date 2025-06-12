@@ -1,43 +1,33 @@
-{{- if .Values.service.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "keycloak.fullname" . }}
-  namespace: {{ include "keycloak.namespace" . }}
+  name: {{ include "keycloak.serviceName" . }}
   labels:
     {{- include "keycloak.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.service.type }}
-  {{- if .Values.service.sessionAffinity }}
-  sessionAffinity: {{ .Values.service.sessionAffinity }}
-  {{- end }}
   ports:
-    {{- range .Values.service.ports }}
-    - name: {{ .name }}
-      port: {{ .port }}
-      targetPort: {{ .targetPort }}
-      protocol: {{ .protocol }}
-    {{- end }}
+    - port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.targetPort }}
+      protocol: TCP
+      name: https
   selector:
     {{- include "keycloak.selectorLabels" . | nindent 4 }}
 ---
-{{- end }}
-{{- if and .Values.service.headless.enabled .Values.statefulset.enabled }}
+{{- if and .Values.service.headlessEnabled (eq .Values.deploymentType "statefulset") }}
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Values.statefulset.serviceName }}
-  namespace: {{ include "keycloak.namespace" . }}
+  name: {{ include "keycloak.headlessServiceName" . }}
   labels:
     {{- include "keycloak.labels" . | nindent 4 }}
-    service-type: headless
 spec:
-  clusterIP: {{ .Values.service.headless.clusterIP }}
+  clusterIP: None
   ports:
-    - name: https
-      port: 8443
+    - port: 8443
       targetPort: 8443
       protocol: TCP
+      name: https
   selector:
     {{- include "keycloak.selectorLabels" . | nindent 4 }}
 {{- end }}

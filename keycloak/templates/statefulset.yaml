@@ -1,21 +1,13 @@
-{{- if .Values.statefulset.enabled }}
+{{- if eq .Values.deploymentType "statefulset" }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: {{ include "keycloak.fullname" . }}
-  namespace: {{ include "keycloak.namespace" . }}
   labels:
     {{- include "keycloak.labels" . | nindent 4 }}
-  {{- with .Values.commonAnnotations }}
-  annotations:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
 spec:
-  serviceName: {{ .Values.statefulset.serviceName }}
-  replicas: {{ .Values.statefulset.replicaCount }}
-  podManagementPolicy: {{ .Values.statefulset.podManagementPolicy }}
-  updateStrategy:
-    {{- toYaml .Values.statefulset.updateStrategy | nindent 4 }}
+  serviceName: {{ include "keycloak.headlessServiceName" . }}
+  replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
       {{- include "keycloak.selectorLabels" . | nindent 6 }}
@@ -23,112 +15,64 @@ spec:
     metadata:
       labels:
         {{- include "keycloak.selectorLabels" . | nindent 8 }}
-        {{- with .Values.podLabels }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
-      {{- with .Values.podAnnotations }}
-      annotations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
     spec:
-      {{- with .Values.global.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      serviceAccountName: {{ include "keycloak.serviceAccountName" . }}
-      securityContext:
-        {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
-        - name: {{ .Chart.Name }}
-          securityContext:
-            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+        - name: keycloak
           image: {{ include "keycloak.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: https
               containerPort: 8443
               protocol: TCP
-          {{- if .Values.livenessProbe.enabled }}
-          livenessProbe:
-            {{- omit .Values.livenessProbe "enabled" | toYaml | nindent 12 }}
-          {{- end }}
-          {{- if .Values.readinessProbe.enabled }}
-          readinessProbe:
-            {{- omit .Values.readinessProbe "enabled" | toYaml | nindent 12 }}
-          {{- end }}
-          {{- if .Values.startupProbe.enabled }}
-          startupProbe:
-            {{- omit .Values.startupProbe "enabled" | toYaml | nindent 12 }}
-          {{- end }}
-          resources:
-            {{- toYaml .Values.resources | nindent 12 }}
-          volumeMounts:
-            {{- if .Values.persistence.home.enabled }}
-            - name: {{ .Values.persistence.home.name }}
-              mountPath: {{ .Values.persistence.home.mountPath }}
-            {{- end }}
-            {{- if .Values.persistence.keycloak.enabled }}
-            - name: {{ .Values.persistence.keycloak.name }}
-              mountPath: {{ .Values.persistence.keycloak.mountPath }}
-            {{- end }}
-          {{- if or .Values.env.secretRefs .Values.env.configMapRefs }}
           envFrom:
             {{- range .Values.env.secretRefs }}
             - secretRef:
                 name: {{ .name }}
             {{- end }}
-            {{- range .Values.env.configMapRefs }}
-            - configMapRef:
-                name: {{ .name }}
-            {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          {{- if .Values.persistence.enabled }}
+          volumeMounts:
+            - name: {{ .Values.persistence.home.name }}
+              mountPath: {{ .Values.persistence.home.mountPath }}
+            - name: {{ .Values.persistence.data.name }}
+              mountPath: {{ .Values.persistence.data.mountPath }}
           {{- end }}
-      {{- with .Values.nodeSelector }}
-      nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.tolerations }}
-      tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8443
+              scheme: HTTPS
+            initialDelaySeconds: 120
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8443
+              scheme: HTTPS
+            initialDelaySeconds: 30
+            periodSeconds: 10
   {{- if .Values.persistence.enabled }}
   volumeClaimTemplates:
-    {{- if .Values.persistence.home.enabled }}
     - metadata:
         name: {{ .Values.persistence.home.name }}
         labels:
           {{- include "keycloak.labels" . | nindent 10 }}
       spec:
-        accessModes:
-          {{- range .Values.persistence.home.accessModes }}
-          - {{ . }}
-          {{- end }}
-        {{- if .Values.persistence.home.storageClass }}
+        accessModes: [ "ReadWriteOnce" ]
         storageClassName: {{ .Values.persistence.home.storageClass }}
-        {{- end }}
         resources:
           requests:
             storage: {{ .Values.persistence.home.size }}
-    {{- end }}
-    {{- if .Values.persistence.keycloak.enabled }}
     - metadata:
-        name: {{ .Values.persistence.keycloak.name }}
+        name: {{ .Values.persistence.data.name }}
         labels:
           {{- include "keycloak.labels" . | nindent 10 }}
       spec:
-        accessModes:
-          {{- range .Values.persistence.keycloak.accessModes }}
-          - {{ . }}
-          {{- end }}
-        {{- if .Values.persistence.keycloak.storageClass }}
-        storageClassName: {{ .Values.persistence.keycloak.storageClass }}
-        {{- end }}
+        accessModes: [ "ReadWriteOnce" ]
+        storageClassName: {{ .Values.persistence.data.storageClass }}
         resources:
           requests:
-            storage: {{ .Values.persistence.keycloak.size }}
-    {{- end }}
+            storage: {{ .Values.persistence.data.size }}
   {{- end }}
 {{- end }}

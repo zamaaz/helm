@@ -1,24 +1,10 @@
-# Global configuration
-global:
-  imageRegistry: ""
-  imagePullSecrets: []
+# Deployment type: "deployment" or "statefulset"
+deploymentType: "statefulset"
 
-# Application metadata
-nameOverride: "keycloak"
+# Basic configuration
+nameOverride: ""
 fullnameOverride: ""
-
-# Namespace configuration (will be created if it doesn't exist)
-namespaceCreate: true
-namespace: "keycloak-project"
-
-# Common labels and annotations
-commonLabels:
-  app: keycloak
-  component: backend
-  managedBy: "Valentine N"
-  region: "KC2_DC"
-
-commonAnnotations: {}
+replicaCount: 1
 
 # Image configuration
 image:
@@ -26,97 +12,49 @@ image:
   repository: missionaccelerator/devsecops/registry/keycloak
   tag: "IMAGE_VERSION"
   pullPolicy: IfNotPresent
-  pullSecrets: []
 
 # StatefulSet configuration
 statefulset:
-  enabled: true
-  replicaCount: 1
-  
-  # Update strategy
-  updateStrategy:
-    type: RollingUpdate
-    rollingUpdate:
-      partition: 0
-  
-  # Pod management policy
-  podManagementPolicy: OrderedReady
-  
-  # Service name for StatefulSet
   serviceName: keycloak-headless
 
-# Environment variables and secrets
+# Environment configuration
 env:
-  # Environment variables from secrets
   secretRefs:
     - name: gitlab-registry
     - name: keycloak
-  
-  # Environment variables from config maps
-  configMapRefs:
-    - name: base
-    - name: keycloak
 
-# Secrets configuration
+# Secrets
 secrets:
-  # Git registry secret (converted from OpenShift)
   gitlabRegistry:
     enabled: true
     name: gitlab-registry
     type: kubernetes.io/dockerconfigjson
-    data: {}
-    # Add your registry credentials here
-    # dockerconfigjson: <base64-encoded-docker-config>
+    data:
+      .dockerconfigjson: ""
   
-  # Application secret
   keycloak:
     enabled: true
     name: keycloak
     type: Opaque
-    data: {}
-    # Add your keycloak secrets here
+    data:
+      KEYCLOAK_ADMIN: YWRtaW4=
+      KEYCLOAK_ADMIN_PASSWORD: YWRtaW4xMjM=
 
-# ConfigMaps configuration
-configMaps:
-  # Base configuration
-  base:
-    enabled: true
-    name: base
-    data: {}
-    # Add your base configuration here
-  
-  # Keycloak specific configuration
-  keycloak:
-    enabled: true
-    name: keycloak
-    data: {}
-    # Add your keycloak configuration here
-
-# Persistent Volume configuration (converted from OpenShift PVC)
+# Storage configuration
 persistence:
   enabled: true
-  
-  # Home volume
   home:
-    enabled: true
     name: home
-    accessModes:
-      - ReadWriteOnce
     size: 1Gi
-    storageClass: "fast-ssd"  # Converted from ocs-storagecluster-ceph-rbd
+    storageClass: "standard"
     mountPath: /opt/home
-    
-  # Keycloak data volume
-  keycloak:
-    enabled: true
-    name: keycloak
-    accessModes:
-      - ReadWriteOnce
+  data:
+    name: keycloak-data
     size: 1Gi
-    storageClass: "fast-ssd"  # Converted from ocs-storagecluster-ceph-rbd
+    storageClass: "standard"
     mountPath: /opt/data
 
-# Resource configuration
+# Resources
 resources:
   limits:
     cpu: 1000m
@@ -127,163 +65,19 @@ resources:
 
 # Service configuration
 service:
-  enabled: true
   type: ClusterIP
-  sessionAffinity: None
-  
-  # Main service ports
-  ports:
-    - name: https
-      protocol: TCP
-      port: 443
-      targetPort: 8443
-  
-  # Headless service for StatefulSet
-  headless:
-    enabled: true
-    clusterIP: None
+  port: 443
+  targetPort: 8443
+  headlessEnabled: true
 
-# Ingress configuration (converted from OpenShift Route)
+# Ingress configuration
 ingress:
-  enabled: false  # Set to true if you want to use Ingress instead of LoadBalancer
+  enabled: false
   className: ""
-  annotations:
-    kubernetes.io/ingress.class: nginx
-    cert-manager.io/cluster-issuer: letsencrypt-prod
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+  annotations: {}
   hosts:
-    - host: keycloak.example.com
+    - host: keycloak.local
       paths:
         - path: /
           pathType: Prefix
-  tls:
-    - secretName: keycloak-tls
-      hosts:
-        - keycloak.example.com
-
-# LoadBalancer service (alternative to Ingress for external access)
-loadBalancer:
-  enabled: true
-  type: LoadBalancer
-  ports:
-    - name: https
-      port: 443
-      targetPort: 8443
-      protocol: TCP
-  annotations: {}
-    # cloud.google.com/load-balancer-type: "Internal"  # For GCP
-    # service.beta.kubernetes.io/aws-load-balancer-internal: "true"  # For AWS
-
-# Security Context
-securityContext:
-  runAsNonRoot: true
-  runAsUser: 1000
-  runAsGroup: 1000
-  fsGroup: 1000
-  seccompProfile:
-    type: RuntimeDefault
-
-podSecurityContext:
-  runAsNonRoot: true
-  runAsUser: 1000
-  runAsGroup: 1000
-  fsGroup: 1000
-
-# Container security context
-containerSecurityContext:
-  allowPrivilegeEscalation: false
-  capabilities:
-    drop:
-      - ALL
-  readOnlyRootFilesystem: false
-  runAsNonRoot: true
-  runAsUser: 1000
-
-# Service Account
-serviceAccount:
-  create: true
-  annotations: {}
-  name: ""
-
-# Pod configuration
-podAnnotations: {}
-podLabels: {}
-
-# Node selection
-nodeSelector: {}
-
-# Tolerations
-tolerations: []
-
-# Affinity
-affinity: {}
-
-# Pod Disruption Budget
-podDisruptionBudget:
-  enabled: true
-  minAvailable: 1
-  # maxUnavailable: 1
-
-# Horizontal Pod Autoscaler (disabled for StatefulSet by default)
-autoscaling:
-  enabled: false
-  minReplicas: 1
-  maxReplicas: 3
-  targetCPUUtilizationPercentage: 80
-  targetMemoryUtilizationPercentage: 80
-
-# Monitoring and observability
-monitoring:
-  enabled: false
-  serviceMonitor:
-    enabled: false
-    namespace: ""
-    interval: 30s
-    path: /metrics
-
-# Health checks
-livenessProbe:
-  enabled: true
-  httpGet:
-    path: /health
-    port: 8443
-    scheme: HTTPS
-  initialDelaySeconds: 120
-  periodSeconds: 30
-  timeoutSeconds: 5
-  failureThreshold: 3
-  successThreshold: 1
-
-readinessProbe:
-  enabled: true
-  httpGet:
-    path: /health/ready
-    port: 8443
-    scheme: HTTPS
-  initialDelaySeconds: 30
-  periodSeconds: 10
-  timeoutSeconds: 5
-  failureThreshold: 3
-  successThreshold: 1
-
-startupProbe:
-  enabled: true
-  httpGet:
-    path: /health
-    port: 8443
-    scheme: HTTPS
-  initialDelaySeconds: 30
-  periodSeconds: 10
-  timeoutSeconds: 5
-  failureThreshold: 30
-  successThreshold: 1
-
-# Network Policies
-networkPolicy:
-  enabled: false
-  policyTypes:
-    - Ingress
-    - Egress
-  ingress: []
-  egress: []
+  tls: []

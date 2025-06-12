@@ -7,6 +7,8 @@ Expand the name of the chart.
 
 {{/*
 Create a default fully qualified app name.
+We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
+If release name contains chart name it will be used as a full name.
 */}}
 {{- define "keycloak.fullname" -}}
 {{- if .Values.fullnameOverride }}
@@ -38,9 +40,8 @@ helm.sh/chart: {{ include "keycloak.chart" . }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
-{{- with .Values.commonLabels }}
-{{ toYaml . }}
-{{- end }}
+app: keycloak
+component: backend
 {{- end }}
 
 {{/*
@@ -63,19 +64,22 @@ Create the name of the service account to use
 {{- end }}
 
 {{/*
-Create the image name
+Create image name
 */}}
 {{- define "keycloak.image" -}}
-{{- if .Values.global.imageRegistry }}
-{{- printf "%s/%s:%s" .Values.global.imageRegistry .Values.image.repository .Values.image.tag }}
-{{- else }}
 {{- printf "%s/%s:%s" .Values.image.registry .Values.image.repository .Values.image.tag }}
-{{- end }}
 {{- end }}
 
 {{/*
-Create namespace
+Create service name
 */}}
-{{- define "keycloak.namespace" -}}
-{{- default .Release.Namespace .Values.namespace }}
+{{- define "keycloak.serviceName" -}}
+{{- printf "%s-keycloak" .Release.Name }}
+{{- end }}
+
+{{/*
+Create headless service name
+*/}}
+{{- define "keycloak.headlessServiceName" -}}
+{{- .Values.statefulset.serviceName }}
 {{- end }}

@@ -1,68 +1,47 @@
-{{- if .Values.deployment.enabled }}
+{{- if eq .Values.deploymentType "deployment" }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "my-app-chart.fullname" . }}-{{ .Values.deployment.name }}
+  name: {{ include "keycloak.fullname" . }}
   labels:
-    {{- include "my-app-chart.labels" . | nindent 4 }}
-    app.kubernetes.io/component: deployment
-  {{- with .Values.commonAnnotations }}
-  annotations:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
+    {{- include "keycloak.labels" . | nindent 4 }}
 spec:
-  replicas: {{ .Values.deployment.replicaCount }}
-  strategy:
-    {{- toYaml .Values.deployment.strategy | nindent 4 }}
+  replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      {{- include "my-app-chart.selectorLabels" . | nindent 6 }}
-      app.kubernetes.io/component: deployment
+      {{- include "keycloak.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "my-app-chart.selectorLabels" . | nindent 8 }}
-        app.kubernetes.io/component: deployment
+        {{- include "keycloak.selectorLabels" . | nindent 8 }}
     spec:
-      {{- with .Values.podSecurityContext }}
-      securityContext:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      serviceAccountName: {{ include "my-app-chart.serviceAccountName" . }}
       containers:
-        - name: {{ .Chart.Name }}
-          {{- with .Values.securityContext }}
-          securityContext:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        - name: keycloak
+          image: {{ include "keycloak.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
-            - name: http
-              containerPort: {{ .Values.deployment.containerPort }}
+            - name: https
+              containerPort: 8443
               protocol: TCP
-          {{- with .Values.deployment.env }}
-          env:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          {{- with .Values.deployment.volumeMounts }}
-          volumeMounts:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          {{- with .Values.deployment.resources }}
+          envFrom:
+            {{- range .Values.env.secretRefs }}
+            - secretRef:
+                name: {{ .name }}
+            {{- end }}
           resources:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-      {{- with .Values.deployment.nodeSelector }}
-      nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.deployment.affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.deployment.tolerations }}
-      tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+            {{- toYaml .Values.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8443
+              scheme: HTTPS
+            initialDelaySeconds: 120
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8443
+              scheme: HTTPS
+            initialDelaySeconds: 30
+            periodSeconds: 10
 {{- end }}

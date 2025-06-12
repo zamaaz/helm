@@ -3,14 +3,4 @@ name: keycloak
 description: A Helm chart for Keycloak identity and access management
 type: application
 version: 0.1.0
-appVersion: "IMAGE_VERSION"
-maintainers:
-  - name: zamaaz
-keywords:
-  - keycloak
-  - identity
-  - authentication
-  - sso
-home: https://www.keycloak.org/
-sources:
-  - https://github.com/keycloak/keycloak
+appVersion: "latest"

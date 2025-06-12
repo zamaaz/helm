@@ -1,0 +1,292 @@
+stages:
+  - validate
+  - security-scan
+  - build
+  - test
+  - deploy-dev
+  - deploy-staging
+  - deploy-prod
+
+# CI variables
+variables:
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: "/certs"
+  
+  # Image configurations
+  CF_IMAGE: 'registry.web.boeing.com/container/boeing-images/util/cf:7.4.0-1.6-8.7-1026'
+  NODE_IMAGE: 'registry.web.boeing.com/container/boeing-images/stack/ubi8-nodejs:8.9-1028-18.14.2'
+  COVERITY_IMAGE: 'registry.web.boeing.com/container/boeing-images/util/coverity:latest'
+  OCP_IMAGE: 'registry.web.boeing.com/container/images/util/ocp:9.4-1194-1-1'
+  
+  # Application configuration
+  IMAGE_NAME: "keycloak-ma"
+  REGISTRY_URL: "registry.web.boeing.com/missionaccelerator"
+  RULES_CHANGES_PATH: "**/*"
+  TAS_APP_NAME: "test-app-name"
+  
+  # Pipeline tagging
+  IMAGE_TAG: "${CI_COMMIT_REF_NAME}-${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}"
+  CONTAINER_TOOL_IMAGE: "registry.web.boeing.com/container/images/util/rhc:9.3-1610-1-1"
+  PQ_IMAGE_NAME: "${CI_REGISTRY_IMAGE}:${CI_PIPELINE_ID}"
+  IMAGE_TO_SCAN: "$PQ_IMAGE_NAME"
+  TWISTCLI_IMAGE: "registry.web.boeing.com/container/images/util/twistcli:9.3-1341-1-1"
+
+# Dockerfile validation
+validate-dockerfile:
+  stage: validate
+  image: hadolint/hadolint:latest-debian
+  script:
+    - hadolint Dockerfile
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - changes:
+        paths:
+          - $RULES_CHANGES_PATH
+
+# Security scanning with Twistcli
+security-scan:
+  stage: security-scan
+  image: 
+    name: $TWISTCLI_IMAGE
+    entrypoint: [""]
+  script:
+    - echo "Running security scan with Twistcli"
+    - twistcli images scan --details $CF_IMAGE || true
+    - twistcli images scan --details $NODE_IMAGE || true
+  artifacts:
+    reports:
+      junit: twistcli-report.xml
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - changes:
+        paths:
+          - $RULES_CHANGES_PATH
+
+# Additional Trivy security scan
+trivy-scan:
+  stage: security-scan
+  image: 
+    name: aquasec/trivy:latest
+    entrypoint: [""]
+  script:
+    - trivy config .
+    - trivy fs --security-checks vuln,secret,config .
+  artifacts:
+    reports:
+      junit: trivy-report.xml
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - changes:
+        paths:
+          - $RULES_CHANGES_PATH
+
+# Build stage
+build-image:
+  stage: build
+  image: docker:24-dind
+  services:
+    - docker:24-dind
+  before_script:
+    - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
+  script:
+    - |
+      docker build \
+        --build-arg sres_username=$SRES_USERNAME \
+        --build-arg sres_api_token=$SRES_API_TOKEN \
+        --build-arg GITLAB_TOKEN=$GITLAB_TOKEN \
+        --build-arg KEYCLOAK_JAR_VERSION=$KEYCLOAK_VERSION \
+        --build-arg CF_IMAGE=$CF_IMAGE \
+        --build-arg NODE_IMAGE=$NODE_IMAGE \
+        --build-arg COVERITY_IMAGE=$COVERITY_IMAGE \
+        --build-arg OCP_IMAGE=$OCP_IMAGE \
+        -t $REGISTRY_URL/$IMAGE_NAME:$IMAGE_TAG \
+        -t $REGISTRY_URL/$IMAGE_NAME:$CI_COMMIT_SHA \
+        -t $REGISTRY_URL/$IMAGE_NAME:latest \
+        -t $PQ_IMAGE_NAME \
+        .
+    - docker push $REGISTRY_URL/$IMAGE_NAME:$IMAGE_TAG
+    - docker push $REGISTRY_URL/$IMAGE_NAME:$CI_COMMIT_SHA
+    - docker push $REGISTRY_URL/$IMAGE_NAME:latest
+    - docker push $PQ_IMAGE_NAME
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - changes:
+        paths:
+          - $RULES_CHANGES_PATH
+
+# Container security scan with Twistcli
+container-scan-twistcli:
+  stage: test
+  image: 
+    name: $TWISTCLI_IMAGE
+    entrypoint: [""]
+  script:
+    - echo "Scanning container image: $IMAGE_TO_SCAN"
+    - twistcli images scan --details $IMAGE_TO_SCAN
+  artifacts:
+    reports:
+      junit: twistcli-container-report.xml
+  dependencies:
+    - build-image
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - changes:
+        paths:
+          - $RULES_CHANGES_PATH
+
+# Container security scan with Trivy
+container-scan-trivy:
+  stage: test
+  image: 
+    name: aquasec/trivy:latest
+    entrypoint: [""]
+  script:
+    - trivy image --format junit -o trivy-container-report.xml $IMAGE_TO_SCAN
+  artifacts:
+    reports:
+      junit: trivy-container-report.xml
+  dependencies:
+    - build-image
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - changes:
+        paths:
+          - $RULES_CHANGES_PATH
+
+# Coverity static analysis
+coverity-scan:
+  stage: test
+  image: $COVERITY_IMAGE
+  script:
+    - echo "Running Coverity static analysis"
+    - cov-build --dir cov-int make
+    - cov-analyze --dir cov-int --all --webapp-security
+    - cov-format-errors --dir cov-int --json-output-v7 coverity-results.json
+  artifacts:
+    reports:
+      codequality: coverity-results.json
+    paths:
+      - coverity-results.json
+  dependencies:
+    - build-image
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - changes:
+        paths:
+          - $RULES_CHANGES_PATH
+
+# Integration tests
+integration-test:
+  stage: test
+  image: $CONTAINER_TOOL_IMAGE
+  services:
+    - docker:24-dind
+    - postgres:13
+  variables:
+    POSTGRES_DB: keycloak
+    POSTGRES_USER: keycloak
+    POSTGRES_PASSWORD: keycloak
+  script:
+    - |
+      docker run -d --name keycloak-test \
+        -e KEYCLOAK_DB_HOST=postgres \
+        -e KEYCLOAK_DB_USER=$POSTGRES_USER \
+        -e KEYCLOAK_DB_PASSWORD=$POSTGRES_PASSWORD \
+        -e TAS_APP_NAME=$TAS_APP_NAME \
+        -p 8080:8080 \
+        $IMAGE_TO_SCAN
+    - sleep 60  # Wait for Keycloak to start
+    - curl -f http://localhost:8080/health/ready || exit 1
+    - curl -f http://localhost:8080/metrics || exit 1
+    - echo "Integration tests completed for app: $TAS_APP_NAME"
+  dependencies:
+    - build-image
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - changes:
+        paths:
+          - $RULES_CHANGES_PATH
+
+# Deploy to Development
+deploy-dev:
+  stage: deploy-dev
+  image: $OCP_IMAGE
+  script:
+    - oc login $DEV_CLUSTER_URL --token=$DEV_CLUSTER_TOKEN
+    - oc project keycloak-dev || oc new-project keycloak-dev
+    - |
+      oc set image deployment/keycloak \
+        keycloak=$REGISTRY_URL/$IMAGE_NAME:$IMAGE_TAG \
+        -n keycloak-dev
+    - oc rollout status deployment/keycloak -n keycloak-dev --timeout=300s
+    - echo "Deployed $TAS_APP_NAME to development with image tag: $IMAGE_TAG"
+  environment:
+    name: development
+    url: https://keycloak-dev.boeing.com
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - changes:
+        paths:
+          - $RULES_CHANGES_PATH
+
+# Deploy to Staging (Manual)
+deploy-staging:
+  stage: deploy-staging
+  image: $OCP_IMAGE
+  script:
+    - oc login $STAGING_CLUSTER_URL --token=$STAGING_CLUSTER_TOKEN
+    - oc project keycloak-staging || oc new-project keycloak-staging
+    - |
+      oc set image deployment/keycloak \
+        keycloak=$REGISTRY_URL/$IMAGE_NAME:$IMAGE_TAG \
+        -n keycloak-staging
+    - oc rollout status deployment/keycloak -n keycloak-staging --timeout=300s
+    - echo "Deployed $TAS_APP_NAME to staging with image tag: $IMAGE_TAG"
+  environment:
+    name: staging
+    url: https://keycloak-staging.boeing.com
+  when: manual
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - changes:
+        paths:
+          - $RULES_CHANGES_PATH
+
+# Deploy to Production (Manual + Approval)
+deploy-prod:
+  stage: deploy-prod
+  image: $OCP_IMAGE
+  script:
+    - oc login $PROD_CLUSTER_URL --token=$PROD_CLUSTER_TOKEN
+    - oc project keycloak-prod || oc new-project keycloak-prod
+    - |
+      oc set image deployment/keycloak \
+        keycloak=$REGISTRY_URL/$IMAGE_NAME:$IMAGE_TAG \
+        -n keycloak-prod
+    - oc rollout status deployment/keycloak -n keycloak-prod --timeout=300s
+    - echo "Deployed $TAS_APP_NAME to production with image tag: $IMAGE_TAG"
+  environment:
+    name: production
+    url: https://keycloak.boeing.com
+  when: manual
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - changes:
+        paths:
+          - $RULES_CHANGES_PATH
+
+# Cleanup job
+cleanup:
+  stage: .post
+  image: docker:24-dind
+  services:
+    - docker:24-dind
+  script:
+    - docker system prune -f
+    - echo "Pipeline cleanup completed"
+  rules:
+    - when: always
+Made with

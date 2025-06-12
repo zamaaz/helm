@@ -1,0 +1,43 @@
+{{- if .Values.service.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "keycloak.fullname" . }}
+  namespace: {{ include "keycloak.namespace" . }}
+  labels:
+    {{- include "keycloak.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  {{- if .Values.service.sessionAffinity }}
+  sessionAffinity: {{ .Values.service.sessionAffinity }}
+  {{- end }}
+  ports:
+    {{- range .Values.service.ports }}
+    - name: {{ .name }}
+      port: {{ .port }}
+      targetPort: {{ .targetPort }}
+      protocol: {{ .protocol }}
+    {{- end }}
+  selector:
+    {{- include "keycloak.selectorLabels" . | nindent 4 }}
+---
+{{- end }}
+{{- if and .Values.service.headless.enabled .Values.statefulset.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.statefulset.serviceName }}
+  namespace: {{ include "keycloak.namespace" . }}
+  labels:
+    {{- include "keycloak.labels" . | nindent 4 }}
+    service-type: headless
+spec:
+  clusterIP: {{ .Values.service.headless.clusterIP }}
+  ports:
+    - name: https
+      port: 8443
+      targetPort: 8443
+      protocol: TCP
+  selector:
+    {{- include "keycloak.selectorLabels" . | nindent 4 }}
+{{- end }}

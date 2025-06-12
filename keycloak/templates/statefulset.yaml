@@ -1,0 +1,134 @@
+{{- if .Values.statefulset.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "keycloak.fullname" . }}
+  namespace: {{ include "keycloak.namespace" . }}
+  labels:
+    {{- include "keycloak.labels" . | nindent 4 }}
+  {{- with .Values.commonAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  serviceName: {{ .Values.statefulset.serviceName }}
+  replicas: {{ .Values.statefulset.replicaCount }}
+  podManagementPolicy: {{ .Values.statefulset.podManagementPolicy }}
+  updateStrategy:
+    {{- toYaml .Values.statefulset.updateStrategy | nindent 4 }}
+  selector:
+    matchLabels:
+      {{- include "keycloak.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "keycloak.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "keycloak.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          image: {{ include "keycloak.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: https
+              containerPort: 8443
+              protocol: TCP
+          {{- if .Values.livenessProbe.enabled }}
+          livenessProbe:
+            {{- omit .Values.livenessProbe "enabled" | toYaml | nindent 12 }}
+          {{- end }}
+          {{- if .Values.readinessProbe.enabled }}
+          readinessProbe:
+            {{- omit .Values.readinessProbe "enabled" | toYaml | nindent 12 }}
+          {{- end }}
+          {{- if .Values.startupProbe.enabled }}
+          startupProbe:
+            {{- omit .Values.startupProbe "enabled" | toYaml | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            {{- if .Values.persistence.home.enabled }}
+            - name: {{ .Values.persistence.home.name }}
+              mountPath: {{ .Values.persistence.home.mountPath }}
+            {{- end }}
+            {{- if .Values.persistence.keycloak.enabled }}
+            - name: {{ .Values.persistence.keycloak.name }}
+              mountPath: {{ .Values.persistence.keycloak.mountPath }}
+            {{- end }}
+          {{- if or .Values.env.secretRefs .Values.env.configMapRefs }}
+          envFrom:
+            {{- range .Values.env.secretRefs }}
+            - secretRef:
+                name: {{ .name }}
+            {{- end }}
+            {{- range .Values.env.configMapRefs }}
+            - configMapRef:
+                name: {{ .name }}
+            {{- end }}
+          {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  {{- if .Values.persistence.enabled }}
+  volumeClaimTemplates:
+    {{- if .Values.persistence.home.enabled }}
+    - metadata:
+        name: {{ .Values.persistence.home.name }}
+        labels:
+          {{- include "keycloak.labels" . | nindent 10 }}
+      spec:
+        accessModes:
+          {{- range .Values.persistence.home.accessModes }}
+          - {{ . }}
+          {{- end }}
+        {{- if .Values.persistence.home.storageClass }}
+        storageClassName: {{ .Values.persistence.home.storageClass }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.home.size }}
+    {{- end }}
+    {{- if .Values.persistence.keycloak.enabled }}
+    - metadata:
+        name: {{ .Values.persistence.keycloak.name }}
+        labels:
+          {{- include "keycloak.labels" . | nindent 10 }}
+      spec:
+        accessModes:
+          {{- range .Values.persistence.keycloak.accessModes }}
+          - {{ . }}
+          {{- end }}
+        {{- if .Values.persistence.keycloak.storageClass }}
+        storageClassName: {{ .Values.persistence.keycloak.storageClass }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.keycloak.size }}
+    {{- end }}
+  {{- end }}
+{{- end }}

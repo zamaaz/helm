@@ -1,0 +1,12 @@
+{{- if .Values.namespaceCreate }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ include "keycloak.namespace" . }}
+  labels:
+    {{- include "keycloak.labels" . | nindent 4 }}
+  {{- with .Values.commonAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}

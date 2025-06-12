@@ -1,0 +1,27 @@
+{{- if .Values.configMaps.base.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.configMaps.base.name }}
+  namespace: {{ include "keycloak.namespace" . }}
+  labels:
+    {{- include "keycloak.labels" . | nindent 4 }}
+data:
+  {{- with .Values.configMaps.base.data }}
+  {{- toYaml . | nindent 2 }}
+  {{- end }}
+---
+{{- end }}
+{{- if .Values.configMaps.keycloak.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.configMaps.keycloak.name }}
+  namespace: {{ include "keycloak.namespace" . }}
+  labels:
+    {{- include "keycloak.labels" . | nindent 4 }}
+data:
+  {{- with .Values.configMaps.keycloak.data }}
+  {{- toYaml . | nindent 2 }}
+  {{- end }}
+{{- end }}

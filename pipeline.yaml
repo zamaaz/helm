@@ -289,4 +289,3 @@ cleanup:
     - echo "Pipeline cleanup completed"
   rules:
     - when: always
-Made with

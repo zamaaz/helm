@@ -1,0 +1,73 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Application Conversion">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        
+        <!-- BEFORE Section -->
+        <mxCell id="2" value="BEFORE (Legacy App)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffebee;strokeColor=#d32f2f;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="50" y="50" width="200" height="400" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="3" value="User Interface" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff3e0;strokeColor=#ff8f00;" vertex="1" parent="1">
+          <mxGeometry x="80" y="100" width="140" height="60" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="4" value="OMRDD Helper Class Library (47K lines code)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff3e0;strokeColor=#ff8f00;" vertex="1" parent="1">
+          <mxGeometry x="80" y="200" width="140" height="80" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="5" value="Direct Database Connection (Always On)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff3e0;strokeColor=#ff8f00;" vertex="1" parent="1">
+          <mxGeometry x="80" y="320" width="140" height="60" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="6" value="SCS Database (Direct Queries)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff3e0;strokeColor=#ff8f00;" vertex="1" parent="1">
+          <mxGeometry x="80" y="420" width="140" height="60" as="geometry"/>
+        </mxCell>
+        
+        <!-- AFTER Section -->
+        <mxCell id="7" value="AFTER (Modernized App)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f5e8;strokeColor=#388e3c;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="400" y="50" width="200" height="400" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="8" value="User Interface" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f8e9;strokeColor=#558b2f;" vertex="1" parent="1">
+          <mxGeometry x="430" y="100" width="140" height="60" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="9" value="SAML Claims Adapter Library (Lightweight)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f8e9;strokeColor=#558b2f;" vertex="1" parent="1">
+          <mxGeometry x="430" y="200" width="140" height="80" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="10" value="Centralized Connection Pool (On Demand)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f8e9;strokeColor=#558b2f;" vertex="1" parent="1">
+          <mxGeometry x="430" y="320" width="140" height="60" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="11" value="Identity Provider (Claims Based)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f8e9;strokeColor=#558b2f;" vertex="1" parent="1">
+          <mxGeometry x="430" y="420" width="140" height="60" as="geometry"/>
+        </mxCell>
+        
+        <!-- Problems -->
+        <mxCell id="12" value="Problems:&#10;• Multiple logins&#10;• No mobile support&#10;• Security risks&#10;• High maintenance" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff8e1;strokeColor=#fbc02d;" vertex="1" parent="1">
+          <mxGeometry x="50" y="550" width="200" height="100" as="geometry"/>
+        </mxCell>
+        
+        <!-- Benefits -->
+        <mxCell id="13" value="Benefits:&#10;• Single Sign-On&#10;• Mobile friendly&#10;• Modern security&#10;• Centralized management" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e0f2f1;strokeColor=#00695c;" vertex="1" parent="1">
+          <mxGeometry x="400" y="550" width="200" height="100" as="geometry"/>
+        </mxCell>
+        
+        <!-- Arrows -->
+        <mxCell id="14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="3" target="4"/>
+        <mxCell id="15" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="4" target="5"/>
+        <mxCell id="16" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="5" target="6"/>
+        <mxCell id="17" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="8" target="9"/>
+        <mxCell id="18" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="9" target="10"/>
+        <mxCell id="19" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="10" target="11"/>
+        <mxCell id="20" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;" edge="1" parent="1" source="2" target="7"/>
+        <mxCell id="21" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="2" target="12"/>
+        <mxCell id="22" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="7" target="13"/>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

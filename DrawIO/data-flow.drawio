@@ -1,0 +1,31 @@
+<mxfile host="app.diagrams.net" modified="2025-06-16T14:00:00Z" agent="5.0 (Windows)">
+  <diagram id="DataFlow" name="Data Flow">
+    <mxGraphModel dx="1221" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="2" value="Salesforce Webhook Event" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="160" width="220" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="3" value="Custom Application&#xa;(Azure Service Bus)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="340" y="160" width="220" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="4" value="Microsoft Graph API" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="600" y="160" width="220" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="5" value="Dynamics CRM&#xa;License Assigned" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="860" y="160" width="220" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="6" style="endArrow=block;html=1;strokeWidth=2" edge="1" parent="1" source="2" target="3">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="7" style="endArrow=block;html=1;strokeWidth=2" edge="1" parent="1" source="3" target="4">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="8" style="endArrow=block;html=1;strokeWidth=2" edge="1" parent="1" source="4" target="5">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
